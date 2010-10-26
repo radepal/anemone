@@ -20,10 +20,14 @@ module Anemone
 
     def self.MongoDB(mongo_db = nil, collection_name = 'pages',params = {})
       require 'anemone/storage/mongodb'
-
-      mongo_db ||= Mongo::Connection.new(params[:host]||nil,params[:port]||nil,{:pool_size=>params[:pool_size]||1,:timeout=>params[:timeout=]||5}).db('anemone')
+      puts params.to_yaml
+      @host     = params[:host]      || nil
+      @port     = params[:port]      || nil
+      @pool_size= params[:pool_size] || 1
+      @timeout  = params[:timeout=]  || 5
+      mongo_db ||= Mongo::Connection.new(@host,@port,{:pool_size=>@pool_size,:timeout=>@timeout}).db('anemone')
       raise "First argument must be an instance of Mongo::DB" unless mongo_db.is_a?(Mongo::DB)
-      self::MongoDB.new(mongo_db, collection_name)
+      self::MongoDB.new(mongo_db, collection_name,:recreate=>params[:recreate])
     end
 
     def self.Redis(opts = {})
