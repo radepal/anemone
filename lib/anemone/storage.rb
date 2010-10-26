@@ -18,9 +18,10 @@ module Anemone
       self::TokyoCabinet.new(file)
     end
 
-    def self.MongoDB(mongo_db = nil, collection_name = 'pages')
+    def self.MongoDB(mongo_db = nil, collection_name = 'pages',params = {})
       require 'anemone/storage/mongodb'
-      mongo_db ||= Mongo::Connection.new.db('anemone')
+
+      mongo_db ||= Mongo::Connection.new(params[:host]||nil,params[:port]||nil,{:pool_size=>params[:pool_size]||1,:timeout=>params[:timeout=]||5}).db('anemone')
       raise "First argument must be an instance of Mongo::DB" unless mongo_db.is_a?(Mongo::DB)
       self::MongoDB.new(mongo_db, collection_name)
     end
