@@ -14,7 +14,6 @@ module Anemone
       def initialize(mongo_db, collection_name,params = {})
         @db = mongo_db
         @collection = @db[collection_name]
-        puts params.to_yaml
         if params[:recreate]
           @collection.remove
           @collection.create_index 'url'

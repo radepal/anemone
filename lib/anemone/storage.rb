@@ -20,7 +20,6 @@ module Anemone
 
     def self.MongoDB(mongo_db = nil, collection_name = 'pages',params = {})
       require 'anemone/storage/mongodb'
-      puts params.to_yaml
       @host     = params[:host]      || nil
       @port     = params[:port]      || nil
       @pool_size= params[:pool_size] || 1
