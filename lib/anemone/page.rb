@@ -76,7 +76,20 @@ module Anemone
       return @doc if @doc
       @doc = Nokogiri::HTML(@body) if @body && html? rescue nil
     end
-
+    #
+    # Set Nokogiri document for the HTML body
+    #
+    def doc=(value)
+      @doc = value
+      @body = value.to_s
+    end
+    #
+    # Set raw body document for the HTML body
+    #
+    def body=(value)
+      @body = value
+      @doc = doc
+    end
     #
     # Delete the Nokogiri document and response body to conserve memory
     #
