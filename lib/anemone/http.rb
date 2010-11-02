@@ -34,12 +34,12 @@ module Anemone
         pages = []
         get(url, referer) do |response, code, location, redirect_to, response_time|
           pages << Page.new(location, :body => response.body.dup,
-                                      :code => code,
-                                      :headers => response.to_hash,
-                                      :referer => referer,
-                                      :depth => depth,
-                                      :redirect_to => redirect_to,
-                                      :response_time => response_time)
+            :code => code,
+            :headers => response.to_hash,
+            :referer => referer,
+            :depth => depth,
+            :redirect_to => redirect_to,
+            :response_time => response_time)
         end
 
         return pages
@@ -85,15 +85,15 @@ module Anemone
       limit = redirect_limit
       loc = url
       begin
-          # if redirected to a relative url, merge it with the host of the original
-          # request url
-          loc = url.merge(loc) if loc.relative?
+        # if redirected to a relative url, merge it with the host of the original
+        # request url
+        loc = url.merge(loc) if loc.relative?
 
-          response, response_time = get_response(loc, referer)
-          code = Integer(response.code)
-          redirect_to = response.is_a?(Net::HTTPRedirection) ?  URI(response['location']).normalize : nil
-          yield response, code, loc, redirect_to, response_time
-          limit -= 1
+        response, response_time = get_response(loc, referer)
+        code = Integer(response.code)
+        redirect_to = response.is_a?(Net::HTTPRedirection) ?  URI(response['location']).normalize : nil
+        yield response, code, loc, redirect_to, response_time
+        limit -= 1
       end while (loc = redirect_to) && allowed?(redirect_to, url) && limit > 0
     end
 
@@ -111,7 +111,15 @@ module Anemone
       retries = 0
       begin
         start = Time.now()
-        response = connection(url).get(full_path, opts)
+        if @opts[:http_content_type]
+          response=  connection(url).head(full_path, opts)
+        
+          if (response['content-type'] =~ @opts[:http_content_type])
+            response = connection(url).get(full_path, opts)
+          end
+        else
+          response = connection(url).get(full_path, opts)
+        end
         finish = Time.now()
         response_time = ((finish - start) * 1000).round
         @cookie_store.merge!(response['Set-Cookie']) if accept_cookies?

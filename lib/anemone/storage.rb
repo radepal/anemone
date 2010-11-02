@@ -23,7 +23,7 @@ module Anemone
       @host     = params[:host]      || nil
       @port     = params[:port]      || nil
       @pool_size= params[:pool_size] || 1
-      @timeout  = params[:timeout=]  || 5
+      @timeout  = params[:timeout].to_f  || 5.0
       mongo_db ||= Mongo::Connection.new(@host,@port,{:pool_size=>@pool_size,:timeout=>@timeout}).db('anemone')
       raise "First argument must be an instance of Mongo::DB" unless mongo_db.is_a?(Mongo::DB)
       self::MongoDB.new(mongo_db, collection_name,:recreate=>params[:recreate])

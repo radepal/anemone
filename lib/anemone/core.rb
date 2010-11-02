@@ -1,6 +1,7 @@
 require 'thread'
 require 'robots'
 require 'anemone/tentacle'
+require 'anemone/page_worker'
 require 'anemone/page'
 require 'anemone/exceptions'
 require 'anemone/page_store'
@@ -28,6 +29,8 @@ module Anemone
     DEFAULT_OPTS = {
       # run 4 Tentacle threads to fetch pages
       :threads => 4,
+      # run 4 PageWorker threads to do pages block
+      :workers => 4,
       # disable verbose output
       :verbose => false,
       # don't throw away the page response body after scanning it for links
@@ -68,12 +71,13 @@ module Anemone
       @urls.each{ |url| url.path = '/' if url.path.empty? }
 
       @tentacles = []
+      @workers = []
       @on_every_page_blocks = []
       @on_pages_like_blocks = Hash.new { |hash,key| hash[key] = [] }
       @skip_link_patterns = []
       @after_crawl_blocks = []
       @opts = opts
-
+      @varibles = {}
       yield self if block_given?
     end
 
@@ -150,38 +154,47 @@ module Anemone
 
       @opts[:threads].times do
         @tentacles << Thread.new { Tentacle.new(link_queue, page_queue, @opts).run }
+     
       end
+      @opts[:workers].times do
 
+      @workers << Thread.new { PageWorker.new(link_queue, page_queue,@pages,@varibles, @opts).run }
+      end
       @urls.each{ |url| link_queue.enq(url) }
 
+
       loop do
-        page = page_queue.deq
-        @pages.touch_key page.url
-        puts "#{page.url} Queue: #{link_queue.size}" if @opts[:verbose]
-        do_page_blocks page
-        page.discard_doc! if @opts[:discard_page_bodies]
-
-        links = links_to_follow page
-        links.each do |link|
-          link_queue << [link, page.url.dup, page.depth + 1]
-        end
-        @pages.touch_keys links
-
-        @pages[page.url] = page
+       # sleep 20
+#        page = page_queue.deq
+#        @pages.touch_key page.url
+#        puts "#{page.url} Queue: #{link_queue.size}" if @opts[:verbose]
+#        do_page_blocks page
+#        page.discard_doc! if @opts[:discard_page_bodies]
+#        puts "page #{page_queue.size} links #{link_queue.size}"
+#        links = links_to_follow page
+#        links.each do |link|
+#          link_queue << [link, page.url.dup, page.depth + 1]
+#        end
+#        @pages.touch_keys links
+#
+#        @pages[page.url] = page
 
         # if we are done with the crawl, tell the threads to end
         if link_queue.empty? and page_queue.empty?
-          until link_queue.num_waiting == @tentacles.size
+          until link_queue.num_waiting == @tentacles.size and  page_queue.num_waiting == @workers.size
             Thread.pass
           end
-          if page_queue.empty?
+         
+          if link_queue.empty? and page_queue.empty?
             @tentacles.size.times { link_queue << :END }
+            @workers.size.times { page_queue << :END }
             break
           end
         end
       end
 
       @tentacles.each { |thread| thread.join }
+      @workers.each { |thread| thread.join }
       do_after_crawl_blocks
       self
     end
@@ -194,7 +207,10 @@ module Anemone
       storage = Anemone::Storage::Base.new(@opts[:storage] || Anemone::Storage.Hash)
       @pages = PageStore.new(storage)
       @robots = Robots.new(@opts[:user_agent]) if @opts[:obey_robots_txt]
-
+      @varibles[:on_every_page_blocks] =@on_every_page_blocks
+      @varibles[:on_pages_like_blocks]=@on_pages_like_blocks
+      @varibles[:focus_crawl_block]=@focus_crawl_block
+      @varibles[:skip_link_patterns]=@skip_link_patterns
       freeze_options
     end
 
@@ -247,10 +263,10 @@ module Anemone
     #
     def visit_link?(link, from_page = nil)
       !@pages.has_page?(link) &&
-      !skip_link?(link) &&
-      !skip_query_string?(link) &&
-      allowed(link) &&
-      !too_deep?(from_page)
+        !skip_link?(link) &&
+        !skip_query_string?(link) &&
+        allowed(link) &&
+        !too_deep?(from_page)
     end
 
     #
